@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../lib/supabase';
 
 export default function PaymentPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -26,11 +25,6 @@ export default function PaymentPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState(0);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const formatCardNumber = (value: string) => {
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
@@ -81,80 +75,55 @@ export default function PaymentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate shipping
-    if (!shippingName || !shippingEmail || !shippingAddress || !shippingCity || !shippingZip) {
-      alert('Please fill out all shipping details.');
-      return;
-    }
-
-    // Validate payment
-    if (!cardNumber || !cardName || !cardExpiry || !cardCvv) {
-      alert('Please fill out all payment details.');
-      return;
-    }
-
-    if (cardNumber.replace(/\s/g, '').length < 16) {
-      alert('Please enter a valid credit card number.');
-      return;
-    }
-
-    if (cardExpiry.length < 5) {
-      alert('Please enter a valid card expiry date.');
-      return;
-    }
-
-    if (cardCvv.length < 3) {
-      alert('Please enter a valid CVV.');
-      return;
-    }
-
     // Begin processing UI
     setIsProcessing(true);
     setProcessingStep(1);
 
     try {
-      // Step 1 — Create the order record
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          customer_name: shippingName,
-          customer_email: shippingEmail,
-          shipping_address: shippingAddress,
-          shipping_city: shippingCity,
-          shipping_zip: shippingZip,
-          total: orderTotal,
-          status: 'confirmed',
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Step 2 — Insert all order line items
       setProcessingStep(2);
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(
-          cart.map((item) => ({
-            order_id: order.id,
-            product_id: item.product.id,
-            product_name: item.product.name,
-            product_image: item.product.image,
-            quantity: item.quantity,
-            price: item.product.price,
-            selected_color: item.selectedColor ?? null,
-          }))
-        );
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shippingName,
+          shippingEmail,
+          shippingAddress,
+          shippingCity,
+          shippingZip,
+          cart,
+          orderTotal,
+        }),
+      });
 
-      if (itemsError) throw itemsError;
+      const result = (await response.json()) as { success?: boolean; message?: string };
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to save order');
+      }
 
       // All done — show success
       setIsProcessing(false);
       setIsSuccess(true);
     } catch (err: unknown) {
       setIsProcessing(false);
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      const message =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === 'object'
+            ? [
+                'message' in err && typeof err.message === 'string' ? err.message : '',
+                'details' in err && typeof err.details === 'string' ? err.details : '',
+                'hint' in err && typeof err.hint === 'string' ? err.hint : '',
+                'code' in err && typeof err.code === 'string' ? `code: ${err.code}` : '',
+              ]
+                .filter(Boolean)
+                .join(' | ') || 'An unexpected error occurred.'
+            : 'An unexpected error occurred.';
+
+      console.error('Checkout failed:', err);
       alert(`Order failed: ${message}`);
     }
   };
@@ -163,8 +132,6 @@ export default function PaymentPage() {
     clearCart();
     router.push('/');
   };
-
-  if (!isMounted) return null;
 
   // Calculations
   const tax = cartTotal * 0.08;
@@ -228,12 +195,11 @@ export default function PaymentPage() {
                   <div className="input-group form-span-2">
                     <label className="input-label">Email Address</label>
                     <input
-                      type="email"
+                      type="text"
                       className="input-field"
                       placeholder="alexander@domain.com"
                       value={shippingEmail}
                       onChange={(e) => setShippingEmail(e.target.value)}
-                      required
                     />
                   </div>
 
@@ -245,7 +211,6 @@ export default function PaymentPage() {
                       placeholder="1042 Obsidian Way"
                       value={shippingAddress}
                       onChange={(e) => setShippingAddress(e.target.value)}
-                      required
                     />
                   </div>
 
@@ -257,7 +222,6 @@ export default function PaymentPage() {
                       placeholder="Neo Metropolis"
                       value={shippingCity}
                       onChange={(e) => setShippingCity(e.target.value)}
-                      required
                     />
                   </div>
 
@@ -269,7 +233,6 @@ export default function PaymentPage() {
                       placeholder="90210"
                       value={shippingZip}
                       onChange={(e) => setShippingZip(e.target.value)}
-                      required
                     />
                   </div>
                 </div>
@@ -316,7 +279,6 @@ export default function PaymentPage() {
                       placeholder="ALEXANDER VANCE"
                       value={cardName}
                       onChange={(e) => setCardName(e.target.value.toUpperCase())}
-                      required
                     />
                   </div>
 
@@ -328,7 +290,6 @@ export default function PaymentPage() {
                       placeholder="4000 1234 5678 9010"
                       value={cardNumber}
                       onChange={handleCardNumberChange}
-                      required
                     />
                   </div>
 
@@ -340,7 +301,6 @@ export default function PaymentPage() {
                       placeholder="MM/YY"
                       value={cardExpiry}
                       onChange={handleExpiryChange}
-                      required
                     />
                   </div>
 
@@ -352,7 +312,6 @@ export default function PaymentPage() {
                       placeholder="•••"
                       value={cardCvv}
                       onChange={handleCvvChange}
-                      required
                     />
                   </div>
                 </div>

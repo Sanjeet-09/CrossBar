@@ -67,6 +67,13 @@ export default function Home() {
     setSelectedProduct(product);
   };
 
+  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, product: Product) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleCardClick(product);
+    }
+  };
+
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
     addToCart(product, 1);
@@ -127,6 +134,9 @@ export default function Home() {
                 key={product.id}
                 className="product-card"
                 onClick={() => handleCardClick(product)}
+                onKeyDown={(event) => handleCardKeyDown(event, product)}
+                role="button"
+                tabIndex={0}
               >
                 <span className="product-card-category">{product.category}</span>
                 <div className="product-image-container">
