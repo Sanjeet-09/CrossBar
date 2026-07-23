@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 export default function PaymentPage() {
   const { cart, cartTotal, clearCart } = useCart();
   const router = useRouter();
+  const gatewayUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? 'http://localhost:4000';
 
   // Form states
   const [shippingName, setShippingName] = useState('');
@@ -82,7 +83,7 @@ export default function PaymentPage() {
     try {
       setProcessingStep(2);
 
-      const response = await fetch('/api/orders', {
+      const response = await fetch(`${gatewayUrl}/api/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "crossbar-sound-x",
+    "name": "CrossBar Sound-X Headphones",
+    "price": 349,
+    "category": "Audio",
+    "description": "Immersive hybrid active noise-cancelling headphones featuring bespoke dynamic drivers, 40-hour battery life, and space-grade materials for ultimate sonic luxury.",
+    "image": "🎧",
+    "rating": 4.9,
+    "reviews": 124,
+    "colors": ["#1e1b4b", "#e2e8f0", "#451a03"],
+    "specs": ["Active Noise Cancelling", "Hi-Res Audio Certified", "40h Battery Life", "Bluetooth 5.3"]
+  },
+  {
+    "id": "keeb-pro-85",
+    "name": "Keeb-Pro 85 Keyboard",
+    "price": 189,
+    "category": "Peripherals",
+    "description": "Bespoke mechanical keyboard with hot-swappable tactile switches, solid milled aluminum casing, dynamic RGB underglow, and fine-tuned dampening layers.",
+    "image": "⌨️",
+    "rating": 4.8,
+    "reviews": 86,
+    "colors": ["#1e293b", "#f8fafc", "#064e3b"],
+    "specs": ["Gasket Mounted", "Hot-Swappable Switches", "CNC Aluminum Case", "Triple-Mode Connection"]
+  },
+  {
+    "id": "chronos-active",
+    "name": "Chronos Smartwatch",
+    "price": 299,
+    "category": "Wearables",
+    "description": "Precision-engineered titanium smartwatch featuring an always-on AMOLED sapphire display, advanced biometric tracking, and modular design.",
+    "image": "⌚",
+    "rating": 4.7,
+    "reviews": 95,
+    "colors": ["#0f172a", "#cbd5e1", "#7c2d12"],
+    "specs": ["Titanium Grade-5 Casing", "Sapphire Glass Screen", "Biometric Sensors", "50m Water Resistance"]
+  },
+  {
+    "id": "opal-ambient",
+    "name": "Opal Ambient Lamp",
+    "price": 129,
+    "category": "Lifestyle",
+    "description": "Sleek smart lamp offering customized circadian lighting spectrums, integrated fast wireless charging base, and touch-sensitive intensity slide.",
+    "image": "💡",
+    "rating": 4.9,
+    "reviews": 43,
+    "colors": ["#f8fafc", "#0f172a", "#b45309"],
+    "specs": ["Circadian Light Cycle", "15W Wireless Charger", "Touch Control Strip", "Smart App Integration"]
+  }
+]

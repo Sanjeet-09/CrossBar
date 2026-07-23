@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useSyncExternalStore, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 export interface Product {
   id: string;
@@ -35,94 +35,101 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = 'crossbar_cart';
-const CART_CHANGE_EVENT = 'crossbar-cart-change';
-const EMPTY_CART: CartItem[] = [];
+const API_GATEWAY_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? 'http://localhost:4000';
+const CART_SESSION_KEY = 'crossbar_cart_session_id';
 
-let cartSnapshot: CartItem[] = EMPTY_CART;
-let cartSeededFromStorage = false;
-
-const readCartFromStorage = (): CartItem[] => {
+const getSessionId = () => {
   if (typeof window === 'undefined') {
-    return EMPTY_CART;
+    return 'server';
   }
 
-  const savedCart = window.localStorage.getItem(CART_STORAGE_KEY);
-  if (!savedCart) {
-    return EMPTY_CART;
+  const existingSessionId = window.localStorage.getItem(CART_SESSION_KEY);
+  if (existingSessionId) {
+    return existingSessionId;
   }
+
+  const generatedSessionId =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  window.localStorage.setItem(CART_SESSION_KEY, generatedSessionId);
+  return generatedSessionId;
+};
+
+const persistCart = async (cart: CartItem[]) => {
+  const sessionId = getSessionId();
 
   try {
-    return JSON.parse(savedCart) as CartItem[];
-  } catch (e) {
-    console.error('Failed to parse cart from localStorage:', e);
-    return [];
+    await fetch(`${API_GATEWAY_URL}/api/cart/${sessionId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ cart }),
+    });
+  } catch (error) {
+    console.error('Failed to sync cart:', error);
   }
-};
-
-const readCartSnapshot = () => cartSnapshot;
-
-const readServerSnapshot = () => EMPTY_CART;
-
-const writeCartToStorage = (cart: CartItem[]) => {
-  cartSnapshot = cart;
-  window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
-  window.dispatchEvent(new Event(CART_CHANGE_EVENT));
-};
-
-const subscribeToCartChanges = (callback: () => void) => {
-  window.addEventListener('storage', callback);
-  window.addEventListener(CART_CHANGE_EVENT, callback);
-
-  return () => {
-    window.removeEventListener('storage', callback);
-    window.removeEventListener(CART_CHANGE_EVENT, callback);
-  };
 };
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const cart = useSyncExternalStore(subscribeToCartChanges, readCartSnapshot, readServerSnapshot);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
-    if (cartSeededFromStorage) {
-      return;
-    }
+    const loadCart = async () => {
+      const sessionId = getSessionId();
 
-    cartSeededFromStorage = true;
-    const savedCart = readCartFromStorage();
+      try {
+        const response = await fetch(`${API_GATEWAY_URL}/api/cart/${sessionId}`);
+        if (!response.ok) {
+          throw new Error(`Failed to load cart: ${response.status}`);
+        }
 
-    if (savedCart !== cartSnapshot) {
-      cartSnapshot = savedCart;
-      window.dispatchEvent(new Event(CART_CHANGE_EVENT));
-    }
+        const data = (await response.json()) as { cart?: CartItem[] };
+        if (Array.isArray(data.cart)) {
+          setCart((currentCart) => (currentCart.length > 0 ? currentCart : data.cart as CartItem[]));
+        }
+      } catch (error) {
+        console.warn('Falling back to empty cart because the cart service could not be loaded:', error);
+      }
+    };
+
+    void loadCart();
   }, []);
 
   const addToCart = (product: Product, quantity: number = 1, color?: string) => {
-    const prevCart = readCartSnapshot();
-    const nextCart = (() => {
+    setCart((prevCart) => {
       const selectedColor = color || (product.colors && product.colors[0]) || '';
       const existingItemIndex = prevCart.findIndex(
         (item) => item.product.id === product.id && item.selectedColor === selectedColor
       );
 
+      const nextCart = [...prevCart];
       if (existingItemIndex > -1) {
-        const newCart = [...prevCart];
-        newCart[existingItemIndex].quantity += quantity;
-        return newCart;
+        nextCart[existingItemIndex] = {
+          ...nextCart[existingItemIndex],
+          quantity: nextCart[existingItemIndex].quantity + quantity,
+        };
+      } else {
+        nextCart.push({ product, quantity, selectedColor });
       }
 
-      return [...prevCart, { product, quantity, selectedColor }];
-    })();
-
-    writeCartToStorage(nextCart);
+      void persistCart(nextCart);
+      return nextCart;
+    });
   };
 
   const removeFromCart = (productId: string, color?: string) => {
-    const nextCart = readCartSnapshot().filter(
-      (item) => !(item.product.id === productId && item.selectedColor === color)
-    );
-    writeCartToStorage(nextCart);
+    setCart((prevCart) => {
+      const nextCart = prevCart.filter(
+        (item) => !(item.product.id === productId && item.selectedColor === color)
+      );
+
+      void persistCart(nextCart);
+      return nextCart;
+    });
   };
 
   const updateQuantity = (productId: string, quantity: number, color?: string) => {
@@ -131,16 +138,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    const nextCart = readCartSnapshot().map((item) =>
-      item.product.id === productId && item.selectedColor === color
-        ? { ...item, quantity }
-        : item
-    );
-    writeCartToStorage(nextCart);
+    setCart((prevCart) => {
+      const nextCart = prevCart.map((item) =>
+        item.product.id === productId && item.selectedColor === color
+          ? { ...item, quantity }
+          : item
+      );
+
+      void persistCart(nextCart);
+      return nextCart;
+    });
   };
 
   const clearCart = () => {
-    writeCartToStorage([]);
+    setCart(() => {
+      void persistCart([]);
+      return [];
+    });
   };
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);

@@ -28,3 +28,15 @@ CREATE TABLE IF NOT EXISTS order_items (
     FOREIGN KEY (order_id) REFERENCES orders(id)
     ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS cart_items (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  session_id VARCHAR(255) NOT NULL,
+  product_id VARCHAR(255) NOT NULL,
+  product_data JSON NOT NULL,
+  quantity INT NOT NULL,
+  selected_color VARCHAR(100) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_cart_items_session_id (session_id)
+);

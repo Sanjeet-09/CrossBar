@@ -1,67 +1,47 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { CartDrawer } from './components/CartDrawer';
 import { ProductModal } from './components/ProductModal';
 import { Product, useCart } from './context/CartContext';
+import productsData from '../shared/products.json';
 import { useRouter } from 'next/navigation';
 
-const PRODUCTS: Product[] = [
-  {
-    id: 'crossbar-sound-x',
-    name: 'CrossBar Sound-X Headphones',
-    price: 349.00,
-    category: 'Audio',
-    description: 'Immersive hybrid active noise-cancelling headphones featuring bespoke dynamic drivers, 40-hour battery life, and space-grade materials for ultimate sonic luxury.',
-    image: '🎧',
-    rating: 4.9,
-    reviews: 124,
-    colors: ['#1e1b4b', '#e2e8f0', '#451a03'],
-    specs: ['Active Noise Cancelling', 'Hi-Res Audio Certified', '40h Battery Life', 'Bluetooth 5.3']
-  },
-  {
-    id: 'keeb-pro-85',
-    name: 'Keeb-Pro 85 Keyboard',
-    price: 189.00,
-    category: 'Peripherals',
-    description: 'Bespoke mechanical keyboard with hot-swappable tactile switches, solid milled aluminum casing, dynamic RGB underglow, and fine-tuned dampening layers.',
-    image: '⌨️',
-    rating: 4.8,
-    reviews: 86,
-    colors: ['#1e293b', '#f8fafc', '#064e3b'],
-    specs: ['Gasket Mounted', 'Hot-Swappable Switches', 'CNC Aluminum Case', 'Triple-Mode Connection']
-  },
-  {
-    id: 'chronos-active',
-    name: 'Chronos Smartwatch',
-    price: 299.00,
-    category: 'Wearables',
-    description: 'Precision-engineered titanium smartwatch featuring an always-on AMOLED sapphire display, advanced biometric tracking, and modular design.',
-    image: '⌚',
-    rating: 4.7,
-    reviews: 95,
-    colors: ['#0f172a', '#cbd5e1', '#7c2d12'],
-    specs: ['Titanium Grade-5 Casing', 'Sapphire Glass Screen', 'Biometric Sensors', '50m Water Resistance']
-  },
-  {
-    id: 'opal-ambient',
-    name: 'Opal Ambient Lamp',
-    price: 129.00,
-    category: 'Lifestyle',
-    description: 'Sleek smart lamp offering customized circadian lighting spectrums, integrated fast wireless charging base, and touch-sensitive intensity slide.',
-    image: '💡',
-    rating: 4.9,
-    reviews: 43,
-    colors: ['#f8fafc', '#0f172a', '#b45309'],
-    specs: ['Circadian Light Cycle', '15W Wireless Charger', 'Touch Control Strip', 'Smart App Integration']
-  }
-];
+const PRODUCTS: Product[] = productsData as Product[];
 
 export default function Home() {
   const { addToCart } = useCart();
   const router = useRouter();
+  const gatewayUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? 'http://localhost:4000';
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProducts = async () => {
+      try {
+        const response = await fetch(`${gatewayUrl}/api/products`);
+        if (!response.ok) {
+          throw new Error(`Failed to load products: ${response.status}`);
+        }
+
+        const data = (await response.json()) as { products?: Product[] };
+        if (!cancelled && Array.isArray(data.products) && data.products.length > 0) {
+          setProducts(data.products);
+        }
+      } catch (error) {
+        console.warn('Using local product fallback:', error);
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gatewayUrl]);
 
   const handleCardClick = (product: Product) => {
     setSelectedProduct(product);
@@ -129,7 +109,7 @@ export default function Home() {
           </div>
 
           <div className="product-grid">
-            {PRODUCTS.map((product) => (
+            {products.map((product) => (
               <div
                 key={product.id}
                 className="product-card"

@@ -3,12 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev:web": "next dev",
+    "dev:gateway": "node services/gateway/server.js",
+    "dev:products": "node services/product-service/server.js",
+    "dev:cart": "node services/cart-service/server.js",
+    "dev:payment": "node services/payment-service/server.js",
+    "dev": "concurrently -k -n web,gateway,products,cart,payment -c cyan,green,magenta,yellow,blue \"npm run dev:web\" \"npm run dev:gateway\" \"npm run dev:products\" \"npm run dev:cart\" \"npm run dev:payment\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "concurrently": "^10.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "mysql2": "^3.22.5",
     "next": "16.2.9",
     "react": "19.2.4",
